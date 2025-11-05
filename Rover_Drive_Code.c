@@ -1,8 +1,8 @@
 /*
- * File:   Rover_Drive_Code.c
+ * File:   MT_Rover_Code.c
  * Author: cmiles10
  *
- * Created on October 29, 2025, 11:26 AM
+ * Created on November 5, 2025, 2:04 PM
  */
 
 
@@ -11,44 +11,20 @@
 // select oscillator
 #pragma config FNOSC = LPRC // 31 khz
 
-// global variables
-int forward_steps = 0;
-int turning_steps = 0;
-int s = 0;
-
-
-// OC1 Interrupt Service Routine
-void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void)
-{
-    // When the OC1 Interrupt is activated, the code will jump up here
-    // each time your PIC generates a PWM step
-    // Add code to clear the flag and increment the step count each time
-    _OC1IF = 0;
-    forward_steps++;
-}
-
-// OC2 Interrupt Service Routine
-void __attribute__((interrupt, no_auto_psv)) _OC2Interrupt(void)
-{
-    // When the OC1 Interrupt is activated, the code will jump up here
-    // each time your PIC generates a PWM step
-    // Add code to clear the flag and increment the step count each time
-    _OC2IF = 0;
-    turning_steps++;
-}
-
-int main(void) {
-    
-    // states
-    enum { forward, full_turn, half_turn } state;
+int main(void){/
     
     // configure pins
     ANSB = 0;
     ANSA = 0;
     
     // configure output or input
-    _TRISA0 = 0;
-    _TRISA1 = 0;
+    _TRISA0 = 0; // pin 2 (direction pin)
+    _TRISA1 = 0; // pin 3 (direction pin)
+                 // pin 4 (left motor PWM pin OC2)
+    _TRISB1 = 1; // pin 5 (a/d pin AN3)
+    _TRISB2 = 1; // pin 6 (a/d pin AN4)
+    _TRISA2 = 1; // pin 7 (a/d pin AN13)
+                 // pin 14 (right motor PWM pin OC1)
     
     // set initial state of output pins
     _LATA0 = 0;
@@ -57,149 +33,54 @@ int main(void) {
     // configure PWM
     OC1CON1 = 0x1C06;
     OC1CON2 = 0x001F;
+    OC2CON1 = 0x1C06;
+    OC2CON2 = 0x001F;
     
-    // PWM period
-    OC1RS = 78;
-        
-    // duty cycle
-    OC1R = 39;
-    
-    // initialize OC1
-    _OC1IP = 4;
-    _OC1IE = 1;
-    _OC1IF = 0;
-    
-    // initialize state
-    state = forward;
-    
-    // initialize while loop
     while(1){
         
-        // state machine
-        // forward state
-        if (state == forward){
+        // line detection
+        if (ADC1BUF4 >= 1000){
             
-            // s = 0 for full_turn
-            if (s == 0){
+            // left QRD activated
+            if (ADC1BUF3 >= 1000){
                 
-                // transition to full_turn
-                if (forward_steps >= 1000){
-                    
-                // disable OC1
-                _OC1IE = 0;
+                // right motor normal
+                OC1RS = 78;
+                OC1R = 39;
                 
-                // enable OC2
-                _OC2IP = 4;
-                _OC2IE = 1;
-                _OC2IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 0;
-                
-                // set turning_steps
-                turning_steps = 0;
-                
-                // change state
-                state = full_turn;
-                
-                }
+                // left motor slow
+                OC2RS = 39;
+                OC2R = 20;
                 
             }
             
-            // s = 1 for half-turn
-            else{
+            // right QRD activated
+            else if (ADC1BUF13 >= 1000){
                 
-                // transition to full_turn
-                if (forward_steps >= 1000){
-                    
-                // disable OC1
-                _OC1IE = 0;
+                // left motor normal
+                OC2RS = 78;
+                OC2R = 39;
                 
-                // enable OC2
-                _OC2IP = 4;
-                _OC2IE = 1;
-                _OC2IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 0;
-                
-                // set turning_steps
-                turning_steps = 0;
-                
-                // change state
-                state = half_turn;
-                
-                }
+                // right motor slow
+                OC1RS = 39;
+                OC1R = 20;
                 
             }
             
-        }
-        
-        // full_turn (180 degree) state
-        if (state == full_turn){
+            else {
                 
-            if (turning_steps >= 200){
-                
-                // disable OC2
-                _OC2IE = 0;
-                
-                // enable OC1
-                _OC1IP = 4;
-                _OC1IE = 1;
-                _OC1IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 1;
-                
-                // change s
-                s = 1;
-                
-                // reset forward_steps
-                forward_steps = 0;
-                
-                // change state
-                state = forward;
-                
-            }
-        }
+                // set PWM equal
+                OC1RS = 78;
+                OC1R = 39;
+                OC2RS = 78;
+                OC2R = 39;
             
-        // half_turn (90 degree) state
-        if (state == half_turn){
-            
-            if (turning_steps >= 100){
-                
-                // disable OC2
-                _OC2IE = 0;
-                
-                // enable OC1
-                _OC1IP = 4;
-                _OC1IE = 1;
-                _OC1IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 1;
-                
-                // change s
-                s = 0;
-                
-                // reset forward_steps
-                forward_steps = 0;
-                
-                // change state
-                state = forward;
-                
             }
-        
+               
         }
         
     }
-            
+    
 return 0;
 
 }
-    
-    
