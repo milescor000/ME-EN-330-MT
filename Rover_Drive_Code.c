@@ -17,49 +17,37 @@
 // turn of secondary oscillator
 #pragma config SOSCSRC = DIG
 
-void line_following(void){
+void line_straight(void){
     
-    // line detection
-    if (ADC1BUF13 < 1000){
-            
-        // left QRD activated
-        if (ADC1BUF15 < 1000){
-                
-        // right motor normal
-        OC1RS = 78;
-        OC1R = 39;
-                
-        // left motor slow
-        OC2RS = 156;
-        OC2R = 78;
-                
-        }
-            
-        // right QRD activated
-        else if (ADC1BUF4 < 1000){
-                
-            // left motor normal
-            OC2RS = 78;
-            OC2R = 39;
-                
-            // right motor slow
-            OC1RS = 156;
-            OC1R = 78;
-                
-        }
-            
-        // only middle QRD activated
-        else{
-                
-            // both motors equal
-            OC1RS = 78;
-            OC1R = 39;
-            OC2RS = 78;
-            OC2R = 39;
-            
-        }
-               
-    }
+    // go straight
+    _LATA0 = 0;
+    _LATA1 = 1;
+        
+    // both motors equal
+    OC1RS = 500;
+    OC1R = 250;
+    OC2RS = 500;
+    OC2R = 250;
+    
+}
+
+void line_left(void){
+        
+    // 
+    OC1RS = 500;
+    OC1R = 250;
+    OC2RS = 1000;
+    OC2R = 500;
+    
+}
+
+void line_right(void){
+        
+    // both motors equal
+    OC1RS = 1000;
+    OC1R = 500;
+    OC2RS = 500;
+    OC2R = 250;
     
 }
 
@@ -114,7 +102,7 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { linefollowing } state;
+    enum { stop, linestraight, lineleft, lineright } state;
     
     // configure peripherals
     config_ad();
@@ -130,10 +118,6 @@ int main(void){
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
                  // pin 14 (right motor OC1)
     
-    // set initial state of output pins
-    _LATA0 = 1;
-    _LATA1 = 0;
-    
     // configure PWM
     OC1CON1 = 0x1C06;
     OC1CON2 = 0x001F;
@@ -141,13 +125,68 @@ int main(void){
     OC2CON2 = 0x001F;
     
     // set state
-    state = linefollowing;
+    state = stop;
     
     // while loop
     while(1){
         
-        // initialize line following state
-        line_following();
+        if (state == stop){
+            
+            // initial PWM
+            OC1RS = 0;
+            OC1R = 0;
+            OC2RS = 0;
+            OC2R = 0;
+            
+            if (ADC1BUF13 < 500){
+                
+                state = linestraight;
+                
+            }
+            
+        }
+        
+        if (state == linestraight){
+            
+            line_straight();
+            
+            if (ADC1BUF15 < 500){
+                
+                state = lineleft;
+                
+            }
+            
+            if (ADC1BUF4 < 500){
+                
+                state = lineright;
+                
+            }
+            
+        }
+        
+        if (state == lineleft){
+            
+            line_left();
+            
+            if (ADC1BUF15 > 500){
+              
+                state = linestraight;
+                
+            }
+            
+        }
+        
+        if (state == lineright){
+            
+            line_right();
+            
+            if (ADC1BUF4 > 500){
+                
+                state = linestraight;
+                
+            }
+            
+        }
         
     }
     
