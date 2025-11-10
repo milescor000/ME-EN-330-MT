@@ -24,30 +24,30 @@ void line_straight(void){
     _LATA1 = 1;
         
     // both motors equal
-    OC1RS = 500;
-    OC1R = 250;
-    OC2RS = 500;
-    OC2R = 250;
+    OC1RS = 300;
+    OC1R = 150;
+    OC2RS = 300;
+    OC2R = 150;
     
 }
 
 void line_left(void){
         
     // 
-    OC1RS = 500;
-    OC1R = 250;
-    OC2RS = 1000;
-    OC2R = 500;
+    OC1RS = 50;
+    OC1R = 25;
+    OC2RS = 2000;
+    OC2R = 1000;
     
 }
 
 void line_right(void){
         
-    // both motors equal
-    OC1RS = 1000;
-    OC1R = 500;
-    OC2RS = 500;
-    OC2R = 250;
+    // 
+    OC1RS = 2000;
+    OC1R = 1000;
+    OC2RS = 50;
+    OC2R = 25;
     
 }
 
@@ -138,7 +138,7 @@ int main(void){
             OC2RS = 0;
             OC2R = 0;
             
-            if (ADC1BUF13 < 500){
+            if (ADC1BUF13 < 3000){
                 
                 state = linestraight;
                 
@@ -150,13 +150,13 @@ int main(void){
             
             line_straight();
             
-            if (ADC1BUF15 < 500){
+            if (ADC1BUF15 < 3000){
                 
                 state = lineleft;
                 
             }
             
-            if (ADC1BUF4 < 500){
+            if (ADC1BUF4 < 3000){
                 
                 state = lineright;
                 
