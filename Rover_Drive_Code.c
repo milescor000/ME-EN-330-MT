@@ -26,7 +26,7 @@ int medium_line = 100;
 int fast_line = 30;
 int qrd_yes = 3000;
 int qrd_no = 50;
-int step_thresh = 1000;
+int step_thresh = 350;
 
 // OC1 Interrupt Service Routine
 void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void)
@@ -95,7 +95,7 @@ void line_straight(void){
 void line_left(void){
     
     // check line middle
-    if (ADC1BUF13 < 3000){
+    if (ADC1BUF13 < qrd_yes){
         OC1RS = medium_line;
         OC1R = OC1RS/2;
         OC2RS = slow_line;
@@ -116,7 +116,7 @@ void line_left(void){
 void line_right(void){
     
     // check line middle
-    if (ADC1BUF13 < 3000){
+    if (ADC1BUF13 < qrd_yes){
         OC1RS = slow_line;
         OC1R = OC1RS/2;
         OC2RS = medium_line;
@@ -130,65 +130,6 @@ void line_right(void){
         OC2RS = fast_line;
         OC2R = OC2RS/2;
     }
-    
-}
-
-// canyon_straight function
-void canyon_straight(void){
-    
-    // go straight
-    _LATA0 = 0;
-    _LATA1 = 1;
-        
-    // both motors equal
-    OC1RS = norm_speed;
-    OC1R = OC1RS/2;
-    OC2RS = norm_speed;
-    OC2R = OC2RS/2;
-    
-}
-
-// canyon_left function
-void canyon_left(void){
-    
-    // change directions
-    _LATA0 = 0;
-    _LATA1 = 0;
-    
-    // PWM period
-    OC1RS = turn_speed;
-    OC2RS = turn_speed;
-        
-    // duty cycle
-    OC1R = OC1RS/2;
-    OC2R = OC2RS/2;
-    
-    // initialize OC1
-    _OC1IP = 4;
-    _OC1IE = 1;
-    _OC1IF = 0;
-    
-}
-
-// canyon_right
-void canyon_right(void){
-    
-    // change directions
-    _LATA0 = 1;
-    _LATA1 = 1;
-    
-    // PWM period
-    OC1RS = turn_speed;
-    OC2RS = turn_speed;
-        
-    // duty cycle
-    OC1R = OC1RS/2;
-    OC2R = OC2RS/2;
-    
-    // initialize OC1
-    _OC1IP = 4;
-    _OC1IE = 1;
-    _OC1IF = 0;
     
 }
 
@@ -310,14 +251,14 @@ int main(void){
         // startleft state
         if (state == startleft){
             
-            // reset steps
-            steps = 0;
-            
             // execute start_left function
             start_left();
             
             // check turn angle
             if (steps >= step_thresh){
+                
+                // reset steps
+                steps = 0;
                 
                 // disable OC1
                 _OC1IE = 0;
@@ -351,24 +292,6 @@ int main(void){
                 
             }
             
-            // check right wall
-            if (_RB14 == 0){
-                
-                // check left wall
-                if (_RB15 == 0){
-                    
-                    // no line middle
-                    if (ADC1BUF13 > qrd_no){
-                        
-                        // change state to canyonstraight
-                        state = canyonstraight;
-                        
-                    }
-                    
-                }
-                 
-            }
-            
         }
         
         // lineleft state
@@ -400,69 +323,6 @@ int main(void){
                 state = linestraight;
                 
             }
-            
-        }
-        
-    }
-    
-    // canyonstraight state
-    if (state == canyonstraight){
-        
-        // execute canyon_straight function
-        canyon_straight();
-        
-        // check wall forward wall
-        if (_RB13 == 0){
-            
-            // check right wall
-            if (_RB14 == 0){
-                
-                // change state to canyonright
-                state = canyonright;
-                        
-            }
-            
-            // check left wall
-            else if (_RB15 == 0){
-                
-                // change state to canyonleft
-                state = canyonleft;
-                
-            }
-            
-        }
-        
-    }
-    
-    if (state == canyonright){
-        
-        // reset steps
-        steps = 0;
-        
-        // execute canyon_right function
-        canyon_right();
-        
-        if (steps >= step_thresh){
-            
-            // change state to canyonstraight
-            state = canyonstraight;
-            
-        }
-        
-    }
-    
-     if (state == canyonleft){
-        
-        // reset steps
-        steps = 0;
-        
-        // execute canyon_right function
-        canyon_left();
-        
-        if (steps >= step_thresh){
-            
-            // change state to canyonstraight
-            state = canyonstraight;
             
         }
         
