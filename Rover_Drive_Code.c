@@ -18,70 +18,18 @@
 #pragma config SOSCSRC = DIG
 
 // global variables
-int steps = 0;
 int norm_speed = 300;
-int turn_speed = 78;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
-int qrd_yes = 3000;
-int qrd_no = 50;
-int step_thresh = 350;
-
-// OC1 Interrupt Service Routine
-void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void)
-{
-    // When the OC1 Interrupt is activated, the code will jump up here
-    // each time your PIC generates a PWM step
-    // Add code to clear the flag and increment the step count each time
-    _OC1IF = 0;
-    steps++;
-}
-
-// start_up function
-void start_up(void){
-    
-    // go straight
-    _LATA0 = 0;
-    _LATA1 = 1;
-        
-    // both motors equal
-    OC1RS = norm_speed;
-    OC1R = OC1RS/2;
-    OC2RS = norm_speed;
-    OC2R = OC2RS/2;
-    
-}
-
-// start_left function
-void start_left(void){
-    
-    
-    // change directions
-    _LATA0 = 0;
-    _LATA1 = 0;
-    
-    // PWM period
-    OC1RS = turn_speed;
-    OC2RS = turn_speed;
-        
-    // duty cycle
-    OC1R = OC1RS/2;
-    OC2R = OC2RS/2;
-    
-    // initialize OC1
-    _OC1IP = 4;
-    _OC1IE = 1;
-    _OC1IF = 0;
-    
-}
+int qrd_thresh = 2000;
 
 // line_straight function
 void line_straight(void){
     
     // go straight
     _LATA0 = 0;
-    _LATA1 = 1;
+    _LATA1 = 0;
         
     // both motors equal
     OC1RS = norm_speed;
@@ -93,9 +41,9 @@ void line_straight(void){
 
 // line_left function
 void line_left(void){
-    
+      _LATA2=1;
     // check line middle
-    if (ADC1BUF13 < qrd_yes){
+    if (ADC1BUF13 < qrd_thresh){
         OC1RS = medium_line;
         OC1R = OC1RS/2;
         OC2RS = slow_line;
@@ -116,7 +64,7 @@ void line_left(void){
 void line_right(void){
     
     // check line middle
-    if (ADC1BUF13 < qrd_yes){
+    if (ADC1BUF13 < qrd_thresh){
         OC1RS = slow_line;
         OC1R = OC1RS/2;
         OC2RS = medium_line;
@@ -187,16 +135,12 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { startup, startleft, linestraight, lineleft, lineright, 
-        canyonstraight, canyonleft, canyonright } state;
+    enum { linestraight, lineleft, lineright } state;
     
     // configure peripherals
     config_ad();
     _ANSA0 = 0;
     _ANSA1 = 0;
-    _ANSB13 = 0;
-    _ANSB14 = 0;
-    _ANSB15 = 0;
     
     // configure output or input
     _TRISA0 = 0; // pin 2 (right motor direction pin)
@@ -206,9 +150,6 @@ int main(void){
     _TRISA2 = 1; // pin 7 (middle QRD a/d pin AN13)
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
                  // pin 14 (right motor OC1)
-    _TRISB13 = 1; // pin 16 (middle IR proximity sensor)
-    _TRISB14 = 1; // pin 17 (right IR proximity sensor)
-    _TRISB15 = 1; // pin 18 (left IR proximity sensor)
    
     // configure PWM
     OC1CON1 = 0x1C06;
@@ -217,67 +158,19 @@ int main(void){
     OC2CON2 = 0x001F;
     
     // set initial state
-    state = startup;
+    state = linestraight;
     
     // while loop
     while(1){
-        
-        // startup state
-        if (state == startup){
-            
-            // execute startup function
-            start_up();
-            
-            // check line middle
-            if (ADC1BUF13 < qrd_yes){
-                
-                // check line left
-                if (ADC1BUF15 < qrd_yes){
-                    
-                    // check line right
-                    if (ADC1BUF4 < qrd_yes){
-                        
-                        // change state to startleft
-                        state = startleft;
-                        
-                    }
-                       
-                }
-                
-            }
-            
-        }
-        
-        // startleft state
-        if (state == startleft){
-            
-            // execute start_left function
-            start_left();
-            
-            // check turn angle
-            if (steps >= step_thresh){
-                
-                // reset steps
-                steps = 0;
-                
-                // disable OC1
-                _OC1IE = 0;
-                
-                // change state to linestraight
-                state = linestraight;
-                 
-            }
-            
-        }
         
         // linestraight state
         if (state == linestraight){
             
             // execute line_straight function
             line_straight();
-            
+           
             // check line left
-            if (ADC1BUF15 < qrd_yes){
+            if (ADC1BUF15 < qrd_thresh){
                 
                 // change state to lineleft
                 state = lineleft;
@@ -285,7 +178,7 @@ int main(void){
             }
             
             // check line right
-            if (ADC1BUF4 < qrd_yes){
+            if (ADC1BUF4 < qrd_thresh){
                 
                 // change state to lineright
                 state = lineright;
@@ -299,9 +192,9 @@ int main(void){
             
             // execute line_left function
             line_left();
-            
+           
             // check no line left
-            if (ADC1BUF15 > qrd_no){
+            if (ADC1BUF15 > qrd_thresh){
                 
                 // change state to linestraight
                 state = linestraight;
@@ -316,8 +209,9 @@ int main(void){
             // execute line_right function
             line_right();
             
+            
             // check no line right
-            if (ADC1BUF4 > qrd_no){
+            if (ADC1BUF4 > qrd_thresh){
                 
                 // change state to linestraight
                 state = linestraight;
