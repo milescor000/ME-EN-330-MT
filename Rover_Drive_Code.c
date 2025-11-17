@@ -1,205 +1,159 @@
-/*
- * File:   Rover_Drive_Code.c
- * Author: cmiles10
- *
- * Created on October 29, 2025, 11:26 AM
- */
-
-
 #include "xc.h"
 
-// select oscillator
-#pragma config FNOSC = LPRC // 31 khz
+// CONFIGURATION
+#pragma config FNOSC = LPFRC
+#pragma config OSCIOFNC = OFF
+#pragma config SOSCSRC = DIG
 
-// global variables
-int forward_steps = 0;
-int turning_steps = 0;
-int s = 0;
+// ====== GLOBALS ======
+int norm_speed = 750;
+int turn_speed = 750;
+int steps = 0;
+int step_thresh = 145;
+int back_step_thresh = 150;
 
-
-// OC1 Interrupt Service Routine
+// ====== INTERRUPT ======
 void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void)
 {
-    // When the OC1 Interrupt is activated, the code will jump up here
-    // each time your PIC generates a PWM step
-    // Add code to clear the flag and increment the step count each time
-    _OC1IF = 0;
-    forward_steps++;
+_OC1IF = 0;
+steps++;
 }
 
-// OC2 Interrupt Service Routine
-void __attribute__((interrupt, no_auto_psv)) _OC2Interrupt(void)
-{
-    // When the OC1 Interrupt is activated, the code will jump up here
-    // each time your PIC generates a PWM step
-    // Add code to clear the flag and increment the step count each time
-    _OC2IF = 0;
-    turning_steps++;
+// ====== MOVEMENT FUNCTIONS ======
+void stop(void) {
+_LATA0 = 0; // right dir
+_LATA1 = 0; // left dir
+OC1RS = 0; OC1R = OC1RS / 2;
+OC2RS = 0; OC2R = OC2RS / 2;
+}
+void drive_straight(void) {
+_LATA0 = 0; // right dir
+_LATA1 = 0; // left dir
+OC1RS = norm_speed; OC1R = OC1RS / 2;
+OC2RS = norm_speed; OC2R = OC2RS / 2;
+}
+void drive_back(void) {
+_LATA0 = 1; // right dir
+_LATA1 = 1; // left dir
+OC1RS = norm_speed; OC1R = OC1RS / 2;
+OC2RS = norm_speed; OC2R = OC2RS / 2;
+}
+void turn_left(void) {
+_LATA0 = 0; // right motor backward
+_LATA1 = 1; // left motor forward
+OC1RS = turn_speed; OC1R = OC1RS / 2;
+OC2RS = turn_speed; OC2R = OC2RS / 2;
 }
 
+void turn_right(void) {
+_LATA0 = 1; // right motor forward
+_LATA1 = 0; // left motor backward
+OC1RS = turn_speed; OC1R = OC1RS / 2;
+OC2RS = turn_speed; OC2R = OC2RS / 2;
+}
+
+// ====== CONFIGURATION ======
+void config_pins(void) {
+_ANSA0 = 0; // digital
+_ANSA1 = 0;
+_ANSA2 = 0;
+_ANSB15 = 0;
+_ANSB14 = 0;
+_ANSB13 = 0;
+_TRISA0 = 0; // right dir
+_TRISA1 = 0; // left dir
+_TRISB13 = 1; // right IR
+_TRISB14 = 1; // front IR
+_TRISB15 = 1; // left IR
+
+//_ANSB8 = 0;
+_TRISB8 = 0;
+}
+
+void config_pwm(void) {
+OC1CON1 = 0x1C06;
+OC1CON2 = 0x001F;
+OC2CON1 = 0x1C06;
+OC2CON2 = 0x001F;
+}
+
+// ====== MAIN ======
 int main(void) {
-    
-    // states
-    enum { forward, full_turn, half_turn } state;
-    
-    // configure pins
-    ANSB = 0;
-    ANSA = 0;
-    
-    // configure output or input
-    _TRISA0 = 0;
-    _TRISA1 = 0;
-    
-    // set initial state of output pins
-    _LATA0 = 0;
-    _LATA1 = 1;
-    
-    // configure PWM
-    OC1CON1 = 0x1C06;
-    OC1CON2 = 0x001F;
-    
-    // PWM period
-    OC1RS = 78;
-        
-    // duty cycle
-    OC1R = 39;
-    
-    // initialize OC1
-    _OC1IP = 4;
-    _OC1IE = 1;
-    _OC1IF = 0;
-    
-    // initialize state
-    state = forward;
-    
-    // initialize while loop
-    while(1){
-        
-        // state machine
-        // forward state
-        if (state == forward){
-            
-            // s = 0 for full_turn
-            if (s == 0){
-                
-                // transition to full_turn
-                if (forward_steps >= 1000){
-                    
-                // disable OC1
-                _OC1IE = 0;
-                
-                // enable OC2
-                _OC2IP = 4;
-                _OC2IE = 1;
-                _OC2IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 0;
-                
-                // set turning_steps
-                turning_steps = 0;
-                
-                // change state
-                state = full_turn;
-                
-                }
-                
+enum { STOP, STRAIGHT, TURN_LEFT, TURN_RIGHT, DRIVE_BACK_RIGHT, DRIVE_BACK_LEFT } state;
+config_pins();
+config_pwm();
+state = STOP;
+
+while (1) {
+    int front = _RB14; //if it doesn't see a wall it will be high
+    int left = _RB15;
+    int right = _RB13;
+
+    switch (state){
+        case STOP:
+            stop();
+            if (left == 0) {
+            steps = 0;
+            _OC1IE = 1;
+            state = STRAIGHT;
+            _LATB8 = 0;
+
+            }else {
+                _LATB8 =1;
             }
-            
-            // s = 1 for half-turn
-            else{
-                
-                // transition to full_turn
-                if (forward_steps >= 1000){
-                    
-                // disable OC1
-                _OC1IE = 0;
-                
-                // enable OC2
-                _OC2IP = 4;
-                _OC2IE = 1;
-                _OC2IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 0;
-                
-                // set turning_steps
-                turning_steps = 0;
-                
-                // change state
-                state = half_turn;
-                
-                }
-                
+            break;
+
+        case STRAIGHT:
+           
+            drive_straight();
+            if (!front && !right) {
+            steps = 0;
+            state = DRIVE_BACK_LEFT;
+            } else if (!front && !left) {
+            steps = 0;
+            state = DRIVE_BACK_RIGHT;
             }
-            
-        }
-        
-        // full_turn (180 degree) state
-        if (state == full_turn){
-                
-            if (turning_steps >= 200){
-                
-                // disable OC2
-                _OC2IE = 0;
-                
-                // enable OC1
-                _OC1IP = 4;
-                _OC1IE = 1;
-                _OC1IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 1;
-                
-                // change s
-                s = 1;
-                
-                // reset forward_steps
-                forward_steps = 0;
-                
-                // change state
-                state = forward;
-                
+            break;
+
+        case TURN_LEFT:
+           
+            turn_left();
+            if (steps > step_thresh) {
+            steps = 0;
+            state = STRAIGHT;
+           
             }
-        }
-            
-        // half_turn (90 degree) state
-        if (state == half_turn){
-            
-            if (turning_steps >= 100){
-                
-                // disable OC2
-                _OC2IE = 0;
-                
-                // enable OC1
-                _OC1IP = 4;
-                _OC1IE = 1;
-                _OC1IF = 0;
-                
-                // change directions
-                _LATA0 = 0;
-                _LATA1 = 1;
-                
-                // change s
-                s = 0;
-                
-                // reset forward_steps
-                forward_steps = 0;
-                
-                // change state
-                state = forward;
-                
+            break;
+
+        case TURN_RIGHT:
+            turn_right();
+            if (steps > step_thresh) {
+            steps = 0;
+            state = STRAIGHT;
+              _LATB8 = 0;
+
+            }else {
+                _LATB8 =1;
+           
             }
-        
-        }
-        
-    }
-            
+            break;
+        case DRIVE_BACK_RIGHT:
+            drive_back();
+            if (steps > back_step_thresh) {
+            steps = 0;
+            state = TURN_RIGHT;
+                    }
+            break;
+        case DRIVE_BACK_LEFT:
+            drive_back();
+            if (steps > back_step_thresh) {
+            steps = 0;
+            state = TURN_LEFT;
+                    }
+            break;
+
+    }  
+}
 return 0;
 
 }
-    
-    
