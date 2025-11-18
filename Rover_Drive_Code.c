@@ -5,7 +5,7 @@
  * Created on November 6, 2025, 3:38 PM
  */
 
-
+//---set-up---------------------------------------------------------------------
 #include "xc.h"
 
 // select oscillator
@@ -16,15 +16,17 @@
 
 // turn of secondary oscillator
 #pragma config SOSCSRC = DIG
+//------------------------------------------------------------------------------
 
-// global variables
+//---global variables-----------------------------------------------------------
 int norm_speed = 300;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
 int qrd_thresh = 2000;
+//------------------------------------------------------------------------------
 
-// line_straight function
+//---line_straight function-----------------------------------------------------
 void line_straight(void){
     
     // go straight
@@ -38,8 +40,9 @@ void line_straight(void){
     OC2R = OC2RS/2;
     
 }
+//------------------------------------------------------------------------------
 
-// line_left function
+//---line_left function---------------------------------------------------------
 void line_left(void){
       _LATA2=1;
     // check line middle
@@ -59,8 +62,9 @@ void line_left(void){
     }
     
 }
+//------------------------------------------------------------------------------
 
-// line_right function
+//---line_right function--------------------------------------------------------
 void line_right(void){
     
     // check line middle
@@ -80,8 +84,9 @@ void line_right(void){
     }
     
 }
+//------------------------------------------------------------------------------
 
-// configure ad conversion
+//---configure ad conversion----------------------------------------------------
 void config_ad(void){
     
     // AD1CON1<15> -- Turn off A/D during config
@@ -130,8 +135,9 @@ void config_ad(void){
     _ADON = 1;      // AD1CON1<15> -- Turn on A/D
     
 }
+//------------------------------------------------------------------------------
 
-// main robot behavior
+//---main robot behavior--------------------------------------------------------
 int main(void){
     
     // states
@@ -163,7 +169,7 @@ int main(void){
     // while loop
     while(1){
         
-        // linestraight state
+        //---linestraight state-------------------------------------------------
         if (state == linestraight){
             
             // execute line_straight function
@@ -186,8 +192,9 @@ int main(void){
             }
             
         }
+        //----------------------------------------------------------------------
         
-        // lineleft state
+        //---lineleft state-----------------------------------------------------
         if (state == lineleft){
             
             // execute line_left function
@@ -202,8 +209,9 @@ int main(void){
             }
             
         }
+        //----------------------------------------------------------------------
         
-        // lineright state
+        //---lineright state----------------------------------------------------
         if (state == lineright){
             
             // execute line_right function
@@ -219,9 +227,11 @@ int main(void){
             }
             
         }
+        //----------------------------------------------------------------------
         
     }
     
 return 0;
 
 }
+//------------------------------------------------------------------------------
