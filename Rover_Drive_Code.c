@@ -5,7 +5,7 @@
  * Created on November 6, 2025, 3:38 PM
  */
 
-//---set-up---------------------------------------------------------------------
+//---Set-Up---------------------------------------------------------------------
 #include "xc.h"
 
 // select oscillator
@@ -169,65 +169,68 @@ int main(void){
     // while loop
     while(1){
         
-        //---linestraight state-------------------------------------------------
-        if (state == linestraight){
-            
-            // execute line_straight function
-            line_straight();
-           
-            // check line left
-            if (ADC1BUF15 < qrd_thresh){
-                
-                // change state to lineleft
-                state = lineleft;
-                
-            }
-            
-            // check line right
-            if (ADC1BUF4 < qrd_thresh){
-                
-                // change state to lineright
-                state = lineright;
-                
-            }
-            
-        }
-        //----------------------------------------------------------------------
+        switch (state){
         
-        //---lineleft state-----------------------------------------------------
-        if (state == lineleft){
-            
-            // execute line_left function
-            line_left();
-           
-            // check no line left
-            if (ADC1BUF15 > qrd_thresh){
-                
-                // change state to linestraight
-                state = linestraight;
-                
-            }
+            //---linestraight state---------------------------------------------
+            case linestraight:
+
+                // execute line_straight function
+                line_straight();
+
+                // check line left
+                if (ADC1BUF15 < qrd_thresh){
+
+                    // change state to lineleft
+                    state = lineleft;
+
+                }
+
+                // check line right
+                if (ADC1BUF4 < qrd_thresh){
+
+                    // change state to lineright
+                    state = lineright;
+
+                }
+
+                break;
+            //------------------------------------------------------------------
+
+            //---lineleft state-------------------------------------------------
+            case lineleft:
+
+                // execute line_left function
+                line_left();
+
+                // check no line left
+                if (ADC1BUF15 > qrd_thresh){
+
+                    // change state to linestraight
+                    state = linestraight;
+
+                }
+
+                break;
+            //------------------------------------------------------------------
+
+            //---lineright state------------------------------------------------
+            case lineright:
+
+                // execute line_right function
+                line_right();
+
+                // check no line right
+                if (ADC1BUF4 > qrd_thresh){
+
+                    // change state to linestraight
+                    state = linestraight;
+
+                }
+
+                break;
+            //------------------------------------------------------------------
             
         }
-        //----------------------------------------------------------------------
-        
-        //---lineright state----------------------------------------------------
-        if (state == lineright){
-            
-            // execute line_right function
-            line_right();
-            
-            
-            // check no line right
-            if (ADC1BUF4 > qrd_thresh){
-                
-                // change state to linestraight
-                state = linestraight;
-                
-            }
-            
-        }
-        //----------------------------------------------------------------------
         
     }
     
