@@ -19,11 +19,23 @@
 //------------------------------------------------------------------------------
 
 //---global variables-----------------------------------------------------------
-int norm_speed = 300;
+int norm_speed = 150;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
+int turn_speed = 78;
 int qrd_thresh = 2000;
+int steps = 0;
+int turn90 = 673;
+//------------------------------------------------------------------------------
+
+//---OC1 interrupt--------------------------------------------------------------
+void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void){
+ 
+_OC1IF = 0;
+steps++;
+
+}
 //------------------------------------------------------------------------------
 
 //---line_straight function-----------------------------------------------------
@@ -86,6 +98,19 @@ void line_right(void){
 }
 //------------------------------------------------------------------------------
 
+//---ball_pickup function-------------------------------------------------------
+void ball_pickup(void){
+
+    // turn 90 degrees
+    OC1RS = 0;
+    OC1R = 0;
+    OC2RS = 0;
+    OC2R = 0;
+    
+}
+//------------------------------------------------------------------------------
+
+
 //---configure ad conversion----------------------------------------------------
 void config_ad(void){
     
@@ -141,12 +166,13 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { linestraight, lineleft, lineright } state;
+    enum { linestraight, lineleft, lineright, ballpickup } state;
     
     // configure peripherals
     config_ad();
     _ANSA0 = 0;
     _ANSA1 = 0;
+    _ANSB13 = 0;
     
     // configure output or input
     _TRISA0 = 0; // pin 2 (right motor direction pin)
@@ -156,6 +182,7 @@ int main(void){
     _TRISA2 = 1; // pin 7 (middle QRD a/d pin AN13)
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
                  // pin 14 (right motor OC1)
+    _TRISB13 = 1; // pin 16 (right IR)
    
     // configure PWM
     OC1CON1 = 0x1C06;
@@ -192,6 +219,14 @@ int main(void){
                     state = lineright;
 
                 }
+                
+                // check right IR
+                if (_RB13 == 0){
+                    
+                    // change state to ballpickup
+                    state = ballpickup;
+                    
+                }
 
                 break;
             //------------------------------------------------------------------
@@ -227,6 +262,15 @@ int main(void){
 
                 }
 
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballpickup state-----------------------------------------------
+            case ballpickup:
+                
+                // execute ball_pickup function
+                ball_pickup();
+                
                 break;
             //------------------------------------------------------------------
             
