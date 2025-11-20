@@ -7,6 +7,7 @@
 
 //---Set-Up---------------------------------------------------------------------
 #include "xc.h"
+#include <stdbool.h>
 
 // select oscillator
 #pragma config FNOSC = LPFRC // 31 khz
@@ -29,6 +30,8 @@ int steps = 0;
 int turn90 = 660;
 int ball_back = 200;
 int ball_forward = 150;
+int ballwait_time = 1000;
+bool ball_wait = true;
 //------------------------------------------------------------------------------
 
 //---OC1 interrupt--------------------------------------------------------------
@@ -37,6 +40,15 @@ void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void){
     _OC1IF = 0;
     steps++;
 
+}
+//------------------------------------------------------------------------------
+
+//---TMR1 INTERRUPt
+void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void){
+    
+    _T1IF = 0; // clear interrupt flag
+    ball_wait = false; // set ball wait to false
+    
 }
 //------------------------------------------------------------------------------
 
@@ -200,7 +212,7 @@ int main(void){
     
     // states
     enum { linestraight, lineleft, lineright, ballback, 
-    ballright, ballforward, rballforward, rballright, stop } state;
+    ballright, ballforward, ballwait, rballforward, rballright, stop } state;
     
     // configure peripherals
     config_ad();
@@ -224,7 +236,15 @@ int main(void){
     OC2CON1 = 0x1C06;
     OC2CON2 = 0x001F;
     
-     _OC1IE = 1; // initiate OC1
+    // initiate OC1 interrupt
+    _OC1IE = 1;
+     
+    
+    // initiate TMR1 interrupt
+    _T1IP = 4; // select interrupt priority
+    _T1IF = 0; // clear interrupt flag
+    _T1IE = 1; // enable interrupt
+    PR1 = ballwait_time; //TMR1 period
     
     // set initial state
     state = linestraight;
@@ -353,7 +373,30 @@ int main(void){
                 // check step count
                 if (steps > ball_forward){
                     
-                    // reset steps
+                    // reset timer
+                    TMR1 = 0;
+                    
+                    // reset ball_wait
+                    ball_wait = true;
+                    
+                    // change state to ballwait
+                    state = ballwait;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballwait state-------------------------------------------------
+            case ballwait:
+                
+                // execute stop_func function
+                stop_func();
+                
+                // check timer
+                if (ballwait == false){
+                    
+                    // reset step count
                     steps = 0;
                     
                     // change state to rballforward
