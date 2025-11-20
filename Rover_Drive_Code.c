@@ -19,15 +19,29 @@
 //------------------------------------------------------------------------------
 
 //---global variables-----------------------------------------------------------
-int norm_speed = 300;
+int norm_speed = 150;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
+int turn_speed = 78;
 int qrd_thresh = 2000;
+int steps = 0;
+int turn90 = 660;
+int ball_back = 200;
+int ball_forward = 150;
+//------------------------------------------------------------------------------
+
+//---OC1 interrupt--------------------------------------------------------------
+void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void){
+ 
+    _OC1IF = 0;
+    steps++;
+
+}
 //------------------------------------------------------------------------------
 
 //---line_straight function-----------------------------------------------------
-void line_straight(void){
+void drive_straight(void){
     
     // go straight
     _LATA0 = 0;
@@ -44,12 +58,12 @@ void line_straight(void){
 
 //---line_left function---------------------------------------------------------
 void line_left(void){
-      _LATA2=1;
+
     // check line middle
     if (ADC1BUF13 < qrd_thresh){
         OC1RS = medium_line;
         OC1R = OC1RS/2;
-        OC2RS = slow_line;
+       OC2RS = slow_line;
         OC2R = OC2RS/2;
     }
     
@@ -83,6 +97,50 @@ void line_right(void){
         OC2R = OC2RS/2;
     }
     
+}
+//------------------------------------------------------------------------------
+
+//---backwards direction function-----------------------------------------------
+void drive_back(void) {
+    
+_LATA0 = 1; // right dir
+_LATA1 = 1; // left dir
+OC1RS = norm_speed; OC1R = OC1RS / 2;
+OC2RS = norm_speed; OC2R = OC2RS / 2;
+
+}
+//------------------------------------------------------------------------------
+
+//---turn left function---------------------------------------------------------
+void turn_left(void) {
+    
+_LATA0 = 0; // right motor backward
+_LATA1 = 1; // left motor forward
+OC1RS = turn_speed; OC1R = OC1RS / 2;
+OC2RS = turn_speed; OC2R = OC2RS / 2;
+
+}
+//------------------------------------------------------------------------------
+
+//---turn right function--------------------------------------------------------
+void turn_right(void) {
+    
+_LATA0 = 1; // right motor forward
+_LATA1 = 0; // left motor backward
+OC1RS = turn_speed; OC1R = OC1RS / 2;
+OC2RS = turn_speed; OC2R = OC2RS / 2;
+
+}
+//------------------------------------------------------------------------------
+
+//---stop function--------------------------------------------------------------
+void stop_func(void) {
+    
+_LATA0 = 0; // right dir
+_LATA1 = 0; // left dir
+OC1RS = 0; OC1R = OC1RS / 2;
+OC2RS = 0; OC2R = OC2RS / 2;
+
 }
 //------------------------------------------------------------------------------
 
@@ -141,12 +199,14 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { linestraight, lineleft, lineright } state;
+    enum { linestraight, lineleft, lineright, ballback, 
+    ballright, ballforward, rballforward, rballright, stop } state;
     
     // configure peripherals
     config_ad();
     _ANSA0 = 0;
     _ANSA1 = 0;
+    _ANSB13 = 0;
     
     // configure output or input
     _TRISA0 = 0; // pin 2 (right motor direction pin)
@@ -156,12 +216,15 @@ int main(void){
     _TRISA2 = 1; // pin 7 (middle QRD a/d pin AN13)
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
                  // pin 14 (right motor OC1)
+    _TRISB13 = 1; // pin 16 (right IR)
    
     // configure PWM
     OC1CON1 = 0x1C06;
     OC1CON2 = 0x001F;
     OC2CON1 = 0x1C06;
     OC2CON2 = 0x001F;
+    
+     _OC1IE = 1; // initiate OC1
     
     // set initial state
     state = linestraight;
@@ -174,8 +237,8 @@ int main(void){
             //---linestraight state---------------------------------------------
             case linestraight:
 
-                // execute line_straight function
-                line_straight();
+                // execute drive_straight function
+                drive_straight();
 
                 // check line left
                 if (ADC1BUF15 < qrd_thresh){
@@ -191,6 +254,17 @@ int main(void){
                     // change state to lineright
                     state = lineright;
 
+                }
+                
+                // check right IR
+                if (_RB13 == 0){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to ballback
+                    state = ballback;
+                     
                 }
 
                 break;
@@ -227,6 +301,115 @@ int main(void){
 
                 }
 
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballback state-------------------------------------------------
+            case ballback:
+                
+                // execute drive_back function
+                drive_back();
+                
+                // check step count
+                if (steps > ball_back){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to ballright
+                    state = ballright;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballright state-------------------------------------------------
+            case ballright:
+                
+                // execute turn_right function
+                turn_right();
+                
+                // check step count
+                if (steps > turn90){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to ballforward
+                    state = ballforward;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballforward state----------------------------------------------
+            case ballforward:
+                
+                // execute drive_straight function
+                drive_straight();
+                
+                // check step count
+                if (steps > ball_forward){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to rballforward
+                    state = rballforward;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---rballforward state---------------------------------------------
+            case rballforward:
+                
+                // execute drive_back function
+                drive_back;
+                
+                //check step count
+                if (steps > ball_forward){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to rballright
+                    state = rballright;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---rballright state------------------------------------------------
+            case rballright:
+                
+                // execute turn_left function
+                turn_left();
+                
+                // check step count
+                if (steps > turn90){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to stop
+                    state = stop;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---stop state-----------------------------------------------------
+            case stop:
+                
+                // execute stop_func function
+                stop_func();
+                
                 break;
             //------------------------------------------------------------------
             
