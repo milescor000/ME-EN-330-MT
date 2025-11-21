@@ -27,11 +27,14 @@ int fast_line = 30;
 int turn_speed = 78;
 int qrd_thresh = 2000;
 int steps = 0;
-int turn90 = 660;
+int turn90 = 640;
+int reverse90 = 590;
 int ball_back = 200;
-int ball_forward = 150;
-int ballwait_time = 1000;
+int ball_forward = 700;
+int ball_rforward = 600;
+int ballwait_time = 3000;
 bool ball_wait = true;
+int ball_exit = 800;
 //------------------------------------------------------------------------------
 
 //---OC1 interrupt--------------------------------------------------------------
@@ -212,13 +215,14 @@ int main(void){
     
     // states
     enum { linestraight, lineleft, lineright, ballback, 
-    ballright, ballforward, ballwait, rballforward, rballright, stop } state;
+    ballright, ballforward, ballwait, rballforward, rballright, ballexit, stop } state;
     
     // configure peripherals
     config_ad();
     _ANSA0 = 0;
     _ANSA1 = 0;
     _ANSB13 = 0;
+    _ANSB15 = 0;
     
     // configure output or input
     _TRISA0 = 0; // pin 2 (right motor direction pin)
@@ -229,6 +233,7 @@ int main(void){
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
                  // pin 14 (right motor OC1)
     _TRISB13 = 1; // pin 16 (right IR)
+    _TRISB15 = 1; // pin 18 (left IR)
    
     // configure PWM
     OC1CON1 = 0x1C06;
@@ -239,12 +244,16 @@ int main(void){
     // initiate OC1 interrupt
     _OC1IE = 1;
      
+    // configure TMR1
+    T1CONbits.TON = 1;
+    T1CONbits.TCS = 0;
+    T1CONbits.TCKPS = 0b10;
     
     // initiate TMR1 interrupt
     _T1IP = 4; // select interrupt priority
     _T1IF = 0; // clear interrupt flag
     _T1IE = 1; // enable interrupt
-    PR1 = ballwait_time; //TMR1 period
+    PR1 = ballwait_time; // TMR1 period
     
     // set initial state
     state = linestraight;
@@ -285,6 +294,14 @@ int main(void){
                     // change state to ballback
                     state = ballback;
                      
+                }
+                
+                // check left IR
+                if (_RB15 == 0){
+                    
+                    // change state to stop
+                    state = stop;
+                    
                 }
 
                 break;
@@ -394,7 +411,7 @@ int main(void){
                 stop_func();
                 
                 // check timer
-                if (ballwait == false){
+                if (ball_wait == false){
                     
                     // reset step count
                     steps = 0;
@@ -411,10 +428,10 @@ int main(void){
             case rballforward:
                 
                 // execute drive_back function
-                drive_back;
+                drive_back();
                 
                 //check step count
-                if (steps > ball_forward){
+                if (steps > ball_rforward){
                     
                     // reset steps
                     steps = 0;
@@ -434,13 +451,30 @@ int main(void){
                 turn_left();
                 
                 // check step count
-                if (steps > turn90){
+                if (steps > reverse90){
                     
                     // reset steps
                     steps = 0;
                     
-                    // change state to stop
-                    state = stop;
+                    // change state to ballexit
+                    state = ballexit;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---ballexit state-------------------------------------------------
+            case ballexit:
+                
+                // execute drive_straight function
+                drive_straight();
+                
+                // check step count
+                if (steps > ball_exit){
+                    
+                    // change state to linestraight
+                    state = linestraight;
                     
                 }
                 
