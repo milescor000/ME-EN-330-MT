@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 // select oscillator
-#pragma config FNOSC = LPFRC // 31 khz
+#pragma config FNOSC = LPFRC // 500 khz
 
 // turn of pin 8 clock
 #pragma config OSCIOFNC = OFF
@@ -32,11 +32,15 @@ int reverse90 = 590;
 int ball_back = 300;
 int ball_forward = 900;
 int ball_rforward = 800;
-int ballwait_time = 3000;
-bool ball_wait = true;
+int wait_time = 3000;
+bool wait = true;
 int ball_exit = 900;
 int canyon_back = 375;
 int canyon_turn90 = 630;
+int servo_left = 63;
+int servo_middle = 188;
+int servo_right = 313;
+int servo_pwm = 2499;
 //------------------------------------------------------------------------------
 
 //---OC1 interrupt--------------------------------------------------------------
@@ -48,11 +52,11 @@ void __attribute__((interrupt, no_auto_psv)) _OC1Interrupt(void){
 }
 //------------------------------------------------------------------------------
 
-//---TMR1 INTERRUPt
+//---TMR1 interrupt-------------------------------------------------------------
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void){
     
     _T1IF = 0; // clear interrupt flag
-    ball_wait = false; // set ball wait to false
+    wait = false; // set ball wait to false
     
 }
 //------------------------------------------------------------------------------
@@ -81,7 +85,7 @@ void line_left(void){
         
         OC1RS = medium_line;
         OC1R = OC1RS/2;
-       OC2RS = slow_line;
+        OC2RS = slow_line;
         OC2R = OC2RS/2;
         
     }
@@ -128,8 +132,8 @@ void line_right(void){
 //---backwards direction function-----------------------------------------------
 void drive_back(void) {
     
-_LATA0 = 1; // right dir
-_LATA1 = 1; // left dir
+_LATA0 = 1;
+_LATA1 = 1;
 OC1RS = norm_speed; OC1R = OC1RS / 2;
 OC2RS = norm_speed; OC2R = OC2RS / 2;
 
@@ -158,33 +162,14 @@ OC2RS = turn_speed; OC2R = OC2RS / 2;
 }
 //------------------------------------------------------------------------------
 
-//---stop_func function--------------------------------------------------------------
-void stop_func(void) {
+//---stop_func function---------------------------------------------------------
+void stop_func(void){
     
 _LATA0 = 0; // right dir
 _LATA1 = 0; // left dir
 OC1RS = 0; OC1R = OC1RS / 2;
 OC2RS = 0; OC2R = OC2RS / 2;
 
-}
-//------------------------------------------------------------------------------
-
-//---ball_deposit function------------------------------------------------------
-void ball_deposit(void){
-    
-    // check if ball is black
-    if (ADC1BUF12 > qrd_thresh){
-        
-        OC3RS = 39; OC3R = OC3RS/2;
-    }
-    
-    // check if ball is white
-    if (ADC1BUF12 < qrd_thresh){
-        
-        OC3RS = 8; OC3R = OC3RS/2;
-        
-    }
-    
 }
 //------------------------------------------------------------------------------
 
@@ -247,7 +232,8 @@ int main(void){
     enum { linestraight, lineleft, lineright, ballback, 
     ballright, ballforward, ballwait, rballforward, rballright,
     ballexit, canyonstraight, canyonback, canyonright, canyonleft,
-    canyonexit, balldeposit, stop } state;
+    canyonexit, balldeposit, depositleft, depositright, depositback, 
+    stop } state;
     
     // configure peripherals
     config_ad();
@@ -278,11 +264,16 @@ int main(void){
     OC2CON2 = 0x001F;
     OC3CON1 = 0x1C06;
     OC3CON2 = 0x001F;
-    
+ 
     // initiate OC1 interrupt
     _OC1IE = 1;
-     
-    // configure TMR1
+    
+    // initialize servo position (middle)
+    OC3RS = servo_pwm;
+    OC3R = servo_middle;
+    
+    // initiate TMR1
+    PR1 = wait_time; // TMR1 period
     T1CONbits.TON = 1;
     T1CONbits.TCS = 0;
     T1CONbits.TCKPS = 0b10;
@@ -291,7 +282,6 @@ int main(void){
     _T1IP = 4; // select interrupt priority
     _T1IF = 0; // clear interrupt flag
     _T1IE = 1; // enable interrupt
-    PR1 = ballwait_time; // TMR1 period
     
     // set initial state
     state = linestraight;
@@ -337,13 +327,17 @@ int main(void){
                 // check left IR
                 if (_RB15 == 0 && _RB13 == 1 && ADC1BUF13 < qrd_thresh){
                     
+                    // reset steps
+                    steps = 0;
+                    
                     // change state to stop
-                    state = stop;
+                    state = depositback;
                     
                 }
                 
                 // check for canyon
-                if ((_RB15 == 0 && ADC1BUF13 > qrd_thresh) || (_RB13 == 0 &&  ADC1BUF13 > qrd_thresh)){
+                if ((_RB15 == 0 && ADC1BUF13 > qrd_thresh)
+                        || (_RB13 == 0 &&  ADC1BUF13 > qrd_thresh)){
                     
                     // change state to canyonstraight
                     state = canyonstraight;
@@ -440,7 +434,7 @@ int main(void){
                     TMR1 = 0;
                     
                     // reset ball_wait
-                    ball_wait = true;
+                    wait = true;
                     
                     // change state to ballwait
                     state = ballwait;
@@ -457,7 +451,7 @@ int main(void){
                 stop_func();
                 
                 // check timer
-                if (ball_wait == false){
+                if (wait == false){
                     
                     // reset step count
                     steps = 0;
@@ -567,14 +561,14 @@ int main(void){
                 // check step count
                 if (steps > canyon_back){
                     
-                    // check wall right
-                    if (_RB13 == 0){
+                    // check wall left
+                    if (_RB15 == 0){
                         
                         // reset steps
                         steps = 0;
                         
-                        // change state to canyonleft
-                        state = canyonleft;
+                        // change state to canyonright
+                        state = canyonright;
                     }
                     
                     // check wall left
@@ -583,8 +577,8 @@ int main(void){
                         // reset steps
                         steps = 0;
                         
-                        // change state to canyonright
-                        state = canyonright;
+                        // change state to canyonleft
+                        state = canyonleft;
                 
                     }
                     
@@ -650,8 +644,102 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
+            //---depositback state----------------------------------------------
+            case depositback:
+                
+                // execute drive_back function
+                _LATA0 = 1;
+                _LATA1 = 1;
+                OC1RS = slow_line; OC1R = OC1RS / 2;
+                OC2RS = slow_line; OC2R = OC2RS / 2;
+                
+                if (steps > ball_back){
+                    
+                    // change state to balldeposit
+                    state = balldeposit;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
             //---balldeposit state----------------------------------------------
             case balldeposit:
+                
+                // execute stop_func function
+                stop_func();
+                
+                // check black ball
+                if (ADC1BUF12 > qrd_thresh){
+                    
+                    // reset wait
+                    wait = true;
+                    
+                    // reset timer
+                    TMR1 = 0;
+                    
+                    // change state to depositright
+                    state = depositright;
+                    
+                }
+                
+                // check ball white
+                if (ADC1BUF12 < qrd_thresh){
+                    
+                    // reset wait
+                    wait = true;
+                    
+                    // reset timer
+                    TMR1 = 0;
+                    
+                    // change state to depositleft
+                    state = depositleft;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+            
+            //---depositright state---------------------------------------------
+            case depositright:
+                
+                // turn servo right for black
+                OC3RS = servo_pwm;
+                OC3R = servo_right;
+                
+                // check timer count
+                if (wait == false){
+                    
+                    // reset servo
+                    OC3RS = servo_pwm;
+                    OC3R = servo_middle;
+                    
+                    // change state to linestraight
+                    state = linestraight;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---depositleft state----------------------------------------------
+            case depositleft:
+                
+                // turn servo right for black
+                OC3RS = servo_pwm;
+                OC3R = servo_left;
+                
+                // check timer count
+                if (wait == false){
+                    
+                    // reset servo
+                    OC3RS = servo_pwm;
+                    OC3R = servo_middle;
+                    
+                    // change state to linestraight
+                    state = linestraight;
+                    
+                }
                 
                 break;
             //------------------------------------------------------------------
