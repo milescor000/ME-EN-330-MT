@@ -34,7 +34,7 @@ int ball_forward = 900;
 int ball_rforward = 800;
 int wait_time = 3000;
 bool wait = true;
-int ball_exit = 900;
+int exit_time = 900;
 int canyon_back = 375;
 int canyon_turn90 = 630;
 int servo_left = 63;
@@ -129,7 +129,7 @@ void line_right(void){
 }
 //------------------------------------------------------------------------------
 
-//---backwards direction function-----------------------------------------------
+//---drive_back function--------------------------------------------------------
 void drive_back(void) {
     
 _LATA0 = 1;
@@ -233,7 +233,7 @@ int main(void){
     ballright, ballforward, ballwait, rballforward, rballright,
     ballexit, canyonstraight, canyonback, canyonright, canyonleft,
     canyonexit, balldeposit, depositleft, depositright, depositback, 
-    stop } state;
+    depositexit, startstraight, startleft, stop } state;
     
     // configure peripherals
     config_ad();
@@ -251,6 +251,8 @@ int main(void){
     _TRISB2 = 1; // pin 6 (right QRD a/d pin AN4)
     _TRISA2 = 1; // pin 7 (middle QRD a/d pin AN13)
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
+                 // pin 10 (laser pin RA4)
+                 // pin 11 (laser sensor RB7)
                  // pin 14 (right motor OC1)
     _TRISB12 = 1; // pin 15 (ball color QRD AN12)
     _TRISB13 = 1; // pin 16 (right IR)
@@ -511,7 +513,7 @@ int main(void){
                 drive_straight();
                 
                 // check step count
-                if (steps > ball_exit){
+                if (steps > exit_time){
                     
                     // change state to linestraight
                     state = linestraight;
@@ -710,12 +712,15 @@ int main(void){
                 // check timer count
                 if (wait == false){
                     
+                    // reset steps
+                    steps = 0;
+                    
                     // reset servo
                     OC3RS = servo_pwm;
                     OC3R = servo_middle;
                     
-                    // change state to linestraight
-                    state = linestraight;
+                    // change state to depositexit
+                    state = depositexit;
                     
                 }
                 
@@ -732,9 +737,67 @@ int main(void){
                 // check timer count
                 if (wait == false){
                     
+                    // reset steps
+                    steps = 0;
+                    
                     // reset servo
                     OC3RS = servo_pwm;
                     OC3R = servo_middle;
+                    
+                    // change state to depositexit
+                    state = depositexit;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+               
+            //---depositexit state----------------------------------------------
+            case depositexit:
+                
+                // execute drive_straight function
+                drive_straight();
+                
+                // check step count
+                if (steps > exit_time){
+                    
+                    // change state to linestraight
+                    state = linestraight;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---startstraight state--------------------------------------------
+            case startstraight:
+                
+                // execute drive_straight function
+                drive_straight();
+                
+                // check for path
+                if (ADC1BUF13 < qrd_thresh && ADC1BUF15 < qrd_thresh
+                        && ADC1BUF4 < qrd_thresh){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to startleft
+                    state = startleft;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+            
+            //---startleft state------------------------------------------------
+            case startleft:
+                
+                // execute turn_left function
+                turn_left();
+                
+                // check step count
+                if (steps > turn90){
                     
                     // change state to linestraight
                     state = linestraight;
