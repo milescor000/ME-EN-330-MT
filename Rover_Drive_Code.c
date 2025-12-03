@@ -46,16 +46,17 @@ int wait_time = 3000;
 // turns
 int turn90 = 615;
 int reverse90 = 590;
-int canyon_turn90 = 645;
-int lander_turn = 630;
+int canyon_right90 = 640;
+int canyon_left90 = 630;
+int lander_turn = 610;
 
 // backwards
 int ballback_count = 300;
 int ballrforward_count = 800;
-int canyonback_count = 350;
+int canyonback_count = 300;
 int depositback_count = 200;
-int landerback_count = 200;
-int landerpark_count = 600;
+int landerback_count = 300;
+int landerpark_count = 1200;
 
 // forwards
 int ball_forward = 900;
@@ -64,6 +65,7 @@ int ball_exit = 900;
 // booleans
 bool wait = true;
 bool canyon_complete = false;
+bool ballpickup_complete = false;
 
 // servos
 int servo_left = 63;
@@ -358,7 +360,7 @@ int main(void){
                 }
                 
                 // check left IR
-                if (_RB15 == 0 && _RB13 == 1 && ADC1BUF13 < qrd_thresh){
+                if (_RB15 == 0 && _RB13 == 1 && ADC1BUF13 < qrd_thresh && ballpickup_complete == true){
                     
                     // reset steps
                     steps = 0;
@@ -369,8 +371,7 @@ int main(void){
                 }
                 
                 // check for canyon
-                if ((_RB15 == 0 && ADC1BUF13 > qrd_thresh)
-                        || (_RB13 == 0 &&  ADC1BUF13 > qrd_thresh)){
+                if (_RB14 == 0 && ADC1BUF13 > qrd_thresh){
                     
                     // change state to canyonstraight
                     state = canyonstraight;
@@ -378,7 +379,8 @@ int main(void){
                 }
                 
                 // check for lander
-                if (_RB8 == 0 && canyon_complete == true){
+                if (_RB8 == 0 && canyon_complete == true && 
+                        ballpickup_complete == true){
                     
                     // reset steps
                     steps = 0;
@@ -557,6 +559,9 @@ int main(void){
                 // check step count
                 if (steps > ball_exit){
                     
+                    // change ballpickup_complete to true
+                    ballpickup_complete = true;
+                    
                     // change state to linestraight
                     state = linestraight;
                     
@@ -649,7 +654,7 @@ int main(void){
                 turn_right();
                 
                 // check step count
-                if (steps > canyon_turn90) {
+                if (steps > canyon_right90) {
                     
                     // reset steps
                     steps=0;
@@ -669,7 +674,7 @@ int main(void){
                 turn_left();
                 
                 // check step count
-                if (steps > canyon_turn90) {
+                if (steps > canyon_left90) {
                     
                     // reset steps
                     steps=0;
