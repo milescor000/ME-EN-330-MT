@@ -33,8 +33,8 @@
 int norm_speed = 150;
 int slow_line = 2000;
 int medium_line = 100;
-int fast_line = 30;
-int turn_speed = 78;
+int fast_line = 20;
+int turn_speed = 47;
 
 // qrds
 int qrd_thresh = 2000;
@@ -44,22 +44,23 @@ int steps = 0;
 int wait_time = 3000;
 
 // turns
-int turn90 = 615;
-int reverse90 = 590;
-int canyon_right90 = 640;
-int canyon_left90 = 630;
+int left90 = 625;
+int reverse90 = 630;
+int canyon_right90 = 800;
+int canyon_left90 = 628;
+int ballpickup_90 = 750;
 int lander_turn = 610;
 
 // backwards
-int ballback_count = 300;
-int ballrforward_count = 800;
+int ballback_count = 115;
+int ballrforward_count = 700;
 int canyonback_count = 300;
 int depositback_count = 200;
 int landerback_count = 300;
 int landerpark_count = 1200;
 
 // forwards
-int ball_forward = 900;
+int ball_forward = 1000;
 int ball_exit = 900;
 
 // booleans
@@ -454,7 +455,7 @@ int main(void){
                 turn_right();
                 
                 // check step count
-                if (steps > turn90){
+                if (steps > ballpickup_90){
                     
                     // reset steps
                     steps = 0;
@@ -694,7 +695,7 @@ int main(void){
                 turn_right();
                 
                 // check step count
-                if (steps > turn90){
+                if (steps > left90){
                     
                     // set canyon_complete to true
                     canyon_complete = true;
@@ -714,7 +715,7 @@ int main(void){
                 turn_left();
                 
                 // check step count
-                if (steps > turn90){
+                if (steps > left90){
                     
                     // set canyon_complete to true
                     canyon_complete = true;
@@ -878,7 +879,7 @@ int main(void){
                 turn_left();
                 
                 // check step count
-                if (steps > turn90){
+                if (steps > left90){
                     
                     // change state to linestraight
                     state = linestraight;
