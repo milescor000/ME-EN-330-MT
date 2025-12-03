@@ -5,7 +5,15 @@
  * Created on November 6, 2025, 3:38 PM
  */
 
-//---Set-Up---------------------------------------------------------------------
+//---to-do----------------------------------------------------------------------
+// ball servo not turning like it should
+// left IR sensor range not large enough
+// canyon navigation not well tuned
+// satellite task
+// reenter lander
+//------------------------------------------------------------------------------
+
+//---set-up---------------------------------------------------------------------
 #include "xc.h"
 #include <stdbool.h>
 
@@ -20,25 +28,48 @@
 //------------------------------------------------------------------------------
 
 //---global variables-----------------------------------------------------------
+
+// speeds
 int norm_speed = 150;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
 int turn_speed = 78;
+
+// qrds
 int qrd_thresh = 2000;
+
+// counters
 int steps = 0;
+int wait_time = 3000;
+
+// turns
 int turn90 = 615;
 int reverse90 = 590;
-int ball_back = 300;
+int canyon_turn90 = 645;
+int lander_turn = 630;
+
+// backwards
+int ballback_count = 300;
+int ballrforward_count = 800;
+int canyonback_count = 350;
+int depositback_count = 200;
+int landerback_count = 200;
+int landerpark_count = 600;
+
+// forwards
 int ball_forward = 900;
-int ball_rforward = 800;
-int wait_time = 3000;
+int ball_exit = 900;
+
+// booleans
 bool wait = true;
-int exit_time = 900;
-int canyon_back = 375;
-int canyon_turn90 = 630;
+bool canyon_complete = false;
+
+// servos
 int servo_left = 63;
-int servo_middle = 188;
+int servo_startmiddle = 220;
+int servo_leftmiddle = 188;
+int servo_rightmiddle = 188;
 int servo_right = 313;
 int servo_pwm = 2499;
 //------------------------------------------------------------------------------
@@ -129,7 +160,7 @@ void line_right(void){
 }
 //------------------------------------------------------------------------------
 
-//---drive_back function--------------------------------------------------------
+//---backwards direction function-----------------------------------------------
 void drive_back(void) {
     
 _LATA0 = 1;
@@ -232,8 +263,9 @@ int main(void){
     enum { linestraight, lineleft, lineright, ballback, 
     ballright, ballforward, ballwait, rballforward, rballright,
     ballexit, canyonstraight, canyonback, canyonright, canyonleft,
-    canyonexit, balldeposit, depositleft, depositright, depositback, 
-    depositexit, startstraight, startleft, stop } state;
+    canyonexitright, canyonexitleft, balldeposit, depositleft, depositright,
+    depositback, depositexit, startstraight, startleft, landerturn, 
+    landerback, landerpark, stop } state;
     
     // configure peripherals
     config_ad();
@@ -251,8 +283,7 @@ int main(void){
     _TRISB2 = 1; // pin 6 (right QRD a/d pin AN4)
     _TRISA2 = 1; // pin 7 (middle QRD a/d pin AN13)
     _TRISB4 = 1; // pin 9 (left QRD a/d pin AN15)
-                 // pin 10 (laser pin RA4)
-                 // pin 11 (laser sensor RB7)
+    _TRISB8 = 1; // pin 13 (underside IR)
                  // pin 14 (right motor OC1)
     _TRISB12 = 1; // pin 15 (ball color QRD AN12)
     _TRISB13 = 1; // pin 16 (right IR)
@@ -272,7 +303,7 @@ int main(void){
     
     // initialize servo position (middle)
     OC3RS = servo_pwm;
-    OC3R = servo_middle;
+    OC3R = servo_startmiddle;
     
     // initiate TMR1
     PR1 = wait_time; // TMR1 period
@@ -286,7 +317,7 @@ int main(void){
     _T1IE = 1; // enable interrupt
     
     // set initial state
-    state = linestraight;
+    state = startstraight;
     
     // while loop
     while(1){
@@ -345,6 +376,17 @@ int main(void){
                     state = canyonstraight;
                     
                 }
+                
+                // check for lander
+                if (_RB8 == 0 && canyon_complete == true){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to landerback
+                    state = landerback;
+                    
+                }
 
                 break;
             //------------------------------------------------------------------
@@ -390,7 +432,7 @@ int main(void){
                 drive_back();
                 
                 // check step count
-                if (steps > ball_back){
+                if (steps > ballback_count){
                     
                     // reset steps
                     steps = 0;
@@ -473,7 +515,7 @@ int main(void){
                 drive_back();
                 
                 //check step count
-                if (steps > ball_rforward){
+                if (steps > ballrforward_count){
                     
                     // reset steps
                     steps = 0;
@@ -513,7 +555,7 @@ int main(void){
                 drive_straight();
                 
                 // check step count
-                if (steps > exit_time){
+                if (steps > ball_exit){
                     
                     // change state to linestraight
                     state = linestraight;
@@ -546,8 +588,19 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to canyon exit
-                    state = canyonexit;
+                    if (_RB15 == 0){
+                        
+                        // change state to canyonexitright
+                        state = canyonexitright;
+                        
+                    }
+                    
+                    else{
+                        
+                        // change state to canyonexitleft
+                        state = canyonexitleft;
+                        
+                    }
                     
                 }
                 
@@ -561,7 +614,7 @@ int main(void){
                 drive_back();
                 
                 // check step count
-                if (steps > canyon_back){
+                if (steps > canyonback_count){
                     
                     // check wall left
                     if (_RB15 == 0){
@@ -610,7 +663,7 @@ int main(void){
             //------------------------------------------------------------------
                 
             //---canyonleft state-----------------------------------------------
-                case canyonleft:
+            case canyonleft:
                 
                 // execute turn right function
                 turn_left();
@@ -629,14 +682,37 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
-            //---canyonexit state-----------------------------------------------
-            case canyonexit:
+            //---canyonexitright state------------------------------------------
+            case canyonexitright:
                 
-                // execute turn_left function
+                // execute turn_right function
+                turn_right();
+                
+                // check step count
+                if (steps > turn90){
+                    
+                    // set canyon_complete to true
+                    canyon_complete = true;
+                    
+                    // change state to linestraight
+                    state = linestraight;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---canyonexitleft state------------------------------------------
+            case canyonexitleft:
+                
+                // execute turn_right function
                 turn_left();
                 
                 // check step count
-                if (steps > canyon_turn90){
+                if (steps > turn90){
+                    
+                    // set canyon_complete to true
+                    canyon_complete = true;
                     
                     // change state to linestraight
                     state = linestraight;
@@ -655,7 +731,7 @@ int main(void){
                 OC1RS = slow_line; OC1R = OC1RS / 2;
                 OC2RS = slow_line; OC2R = OC2RS / 2;
                 
-                if (steps > ball_back){
+                if (steps > depositback_count){
                     
                     // change state to balldeposit
                     state = balldeposit;
@@ -717,9 +793,9 @@ int main(void){
                     
                     // reset servo
                     OC3RS = servo_pwm;
-                    OC3R = servo_middle;
+                    OC3R = servo_rightmiddle;
                     
-                    // change state to depositexit
+                    // change state to linestraight
                     state = depositexit;
                     
                 }
@@ -742,16 +818,16 @@ int main(void){
                     
                     // reset servo
                     OC3RS = servo_pwm;
-                    OC3R = servo_middle;
+                    OC3R = servo_leftmiddle;
                     
-                    // change state to depositexit
+                    // change state to linestraight
                     state = depositexit;
                     
                 }
                 
                 break;
             //------------------------------------------------------------------
-               
+                
             //---depositexit state----------------------------------------------
             case depositexit:
                 
@@ -759,7 +835,7 @@ int main(void){
                 drive_straight();
                 
                 // check step count
-                if (steps > exit_time){
+                if (steps > ball_exit){
                     
                     // change state to linestraight
                     state = linestraight;
@@ -776,7 +852,7 @@ int main(void){
                 drive_straight();
                 
                 // check for path
-                if (ADC1BUF13 < qrd_thresh && ADC1BUF15 < qrd_thresh
+                if (ADC1BUF13 < qrd_thresh && ADC1BUF15 < qrd_thresh 
                         && ADC1BUF4 < qrd_thresh){
                     
                     // reset steps
@@ -807,6 +883,62 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
+            //---landerback state-----------------------------------------------
+            case landerback:
+                
+                // execute drive_back function
+                drive_back();
+                
+                // check step count
+                if (steps > landerback_count){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to landerturn
+                    state = landerturn;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---landerturn state-----------------------------------------------
+            case landerturn:
+                
+                // execute turn_right function
+                turn_right();
+                
+                if (steps > lander_turn){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to landerpark
+                    state = landerpark;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---landerpark state-----------------------------------------------
+            case landerpark:
+                
+                // execute drive_back function
+                drive_back();
+                
+                // check step count
+                if (steps > landerpark_count){
+                    
+                    // change state to stop
+                    state = stop;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+            
             //---stop state-----------------------------------------------------
             case stop:
                 
