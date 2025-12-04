@@ -49,12 +49,13 @@ int canyon_turn90 = 645;
 
 // backwards
 int ball_reverse = 800;
-int lander_reverse = 200;
+int lander_reverse = 1000;
 
 // adjusts
 int pickup_adjust = 300;
 int canyon_adjust = 350;
 int deposit_adjust = 200;
+int lander_adjust = 200;
 
 // forwards
 int ball_forward = 900;
@@ -264,12 +265,12 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { startstraight, startleft, linestraight, lineleft, lineright, ballback, 
+    enum { startstraight, startleft, linestraight, lineleft, lineright, balladjust, 
         ballright, ballforward, ballwait, ballreverse, ballleft,
-        ballexit, canyonstraight, canyonback, canyonright, canyonleft,
-        canyonexitright, canyonexitleft, depositback, balldeposit, 
-        depositleft, depositright, depositexit, landerturn, 
-        landerback, stop } state;
+        ballexit, canyonstraight, canyonadjust, canyonright, canyonleft,
+        canyonexitright, canyonexitleft, depositadjust, balldeposit, 
+        depositleft, depositright, depositexit, landeradjust, landerright, 
+        landerreverse, roveroff } state;
     
     // configure peripherals
     config_ad();
@@ -394,8 +395,8 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to ballback
-                    state = ballback;
+                    // change state to balladjust
+                    state = balladjust;
                      
                 }
                 
@@ -407,7 +408,7 @@ int main(void){
                     steps = 0;
                     
                     // change state to stop
-                    state = depositback;
+                    state = depositadjust;
                     
                 }
                 
@@ -427,8 +428,8 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to landerback
-                    state = landerback;
+                    // change state to landeradjust
+                    state = landeradjust;
                     
                 }
 
@@ -469,8 +470,8 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
-            //---ballback state-------------------------------------------------
-            case ballback:
+            //---balladjust state-------------------------------------------------
+            case balladjust:
                 
                 // execute drive_back function
                 drive_back();
@@ -624,8 +625,8 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to canyonback
-                    state = canyonback;
+                    // change state to canyonadjust
+                    state = canyonadjust;
                     
                 }
                 
@@ -654,8 +655,8 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
-            //---canyonback state-----------------------------------------------
-            case canyonback:
+            //---canyonadjust state-----------------------------------------------
+            case canyonadjust:
                 
                 // execute drive_back function
                 drive_back();
@@ -769,8 +770,8 @@ int main(void){
                 break;
             //------------------------------------------------------------------
                 
-            //---depositback state----------------------------------------------
-            case depositback:
+            //---depositadjust state----------------------------------------------
+            case depositadjust:
                 
                 // execute drive_back function
                 _LATA0 = 1;
@@ -894,28 +895,9 @@ int main(void){
                 
                 break;
             //------------------------------------------------------------------
-                
-            //---landerturn state-----------------------------------------------
-            case landerturn:
-                
-                // execute turn_right function
-                turn_right();
-                
-                if (steps > turn90){
-                    
-                    // reset steps
-                    steps = 0;
-                    
-                    // change state to landerback
-                    state = stop;
-                    
-                }
-                
-                break;
-            //------------------------------------------------------------------
-                
-            //---landerback state-----------------------------------------------
-            case landerback:
+
+            //---landeradjust state---------------------------------------------
+            case landeradjust:
                 
                 // execute drive_back function
                 drive_back();
@@ -926,16 +908,53 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to landerturn
-                    state = landerturn;
+                    // change state to landerright
+                    state = landerright;
                     
                 }
                 
                 break;
             //------------------------------------------------------------------
+                
+            //---landerright state----------------------------------------------
+            case landerright:
+                
+                // execute turn_right function
+                turn_right();
+                
+                // check step count
+                if (steps > turn90){
+                    
+                    // reset steps
+                    steps = 0;
+                    
+                    // change state to landerreverse
+                    state = landerreverse;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+
+            //---landerreverse state--------------------------------------------
+            case landerreverse:
+                
+                // execute drive_back function
+                drive_back();
+
+                // check step count
+                if (steps > lander_reverse){
+
+                    // change state to roveroof
+                    state = roveroff;
+
+                }
+
+                break;
+            //------------------------------------------------------------------
             
-            //---stop state-----------------------------------------------------
-            case stop:
+            //---roveroff state-------------------------------------------------
+            case roveroff:
                 
                 // execute stop_func function
                 stop_func();
