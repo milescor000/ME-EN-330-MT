@@ -38,10 +38,11 @@ int turn_speed = 78;
 
 // sensing
 int qrd_thresh = 2000;
-int diode_thresh = 1000;
+int diode_thresh = 500;
 
 // counters
 int steps = 0;
+int servo_increment = 7;
 
 // turns
 int turn90 = 615;
@@ -66,6 +67,7 @@ int ball_exit = 900;
 
 // timer periods
 int wait_time = 3000;
+int short_time = 1500;
 
 // booleans
 bool wait = true;
@@ -74,9 +76,10 @@ bool ballpickup_complete = false;
 bool balldeposit_complete = false;
 
 // servos
-int servo_left = 35;
-int servo_middle = 150;
+int servo_left = 63;
+int servo_middle = 188;
 int servo_right = 313;
+int servo_start = 150;
 int servo_pwm = 2499;
 //------------------------------------------------------------------------------
 
@@ -272,7 +275,8 @@ int main(void){
         ballexit, canyonstraight, canyonadjust, canyonright, canyonleft,
         canyonexitright, canyonexitleft, depositadjust, balldeposit, 
         depositleft, depositright, depositexit, landeradjust, landerright, 
-        landerreverse, roveroff, firelaser } state;
+        landerreverse, roveroff, laserincrement, laserdelay, firelaser, 
+        missioncomplete } state;
     
     // configure peripherals
     config_ad();
@@ -325,7 +329,7 @@ int main(void){
     _T1IE = 1; // enable interrupt
     
     // set initial state
-    state = roveroff;
+    state = depositadjust;
     
     // while loop
     while(1){
@@ -424,7 +428,7 @@ int main(void){
                 }
                 
                 // check for lander
-                if (_RA4 == 0 && canyon_complete == true 
+                if (_RB8 == 0 && canyon_complete == true 
                     && ballpickup_complete == true 
                     && balldeposit_complete == true){
                     
@@ -961,23 +965,78 @@ int main(void){
                 
                 // execute stop_func function
                 stop_func();
-                
-                // check for laser
-                if (ADC1BUF11 < diode_thresh){
                     
-                    // set state to firelaser
+                // set state to firelaser
+                state = laserincrement;
+                
+                // change TMR1 period
+                PR1 = short_time;
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---laserincrement state-------------------------------------------
+            case laserincrement:
+                
+                // increase servo angle
+                servo_start = servo_start - servo_increment;
+                
+                // change OC3R duty cycle
+                OC3R = servo_start;
+                
+                // change wait
+                wait = true;
+                
+                // reset TMR1
+                TMR1 = 0;
+                
+                // change state to laserdelay
+                state = laserdelay;
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---laserdelay-----------------------------------------------------
+            case laserdelay:
+                
+                // check TMR1
+                if (wait == false){
+                    
+                    // change state to firelaser
                     state = firelaser;
                     
                 }
-                
                 break;
             //------------------------------------------------------------------
                 
             //---firelaser state------------------------------------------------
             case firelaser:
                 
-                // turn laser on
-                _LATB7 = 1;
+                if (ADC1BUF11 > diode_thresh){
+                    
+                    // turn laser on
+                    _LATB7 = 1;
+                    
+                    // change state to missioncomplete
+                    state = missioncomplete;
+                    
+                }
+                
+                else{
+                    
+                    // change state to laser increment
+                    state = laserincrement;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---missioncomplete state------------------------------------------
+            case missioncomplete:
+                
+                // maintain laser position
+                OC3R = servo_start;
                 
                 break;
             //------------------------------------------------------------------
