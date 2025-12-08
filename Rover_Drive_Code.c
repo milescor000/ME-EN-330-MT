@@ -30,10 +30,12 @@
 //---global variables-----------------------------------------------------------
 
 // speeds
-int norm_speed = 125;
+int norm_speed = 100;
 int slow_line = 2000;
-int medium_line = 100;
-int fast_line = 30;
+int medium_line = 50;
+int fast_line = 25;
+int canyon_speed = 150;
+int deposit_speed = 1500;
 int turn_speed = 78;
 
 // sensing
@@ -43,22 +45,22 @@ int diode_thresh = 500;
 // counters
 int steps = 0;
 int servo_increment = 7;
-int final_increment = 10;
+int final_increment = 15;
 
 // turns
 int turn90 = 615;
 int reverse90 = 590;
-int canyonright_90 = 625;
-int canyonleft_90 = 623;
-int lander_turn90 = 595;
+int canyonright_90 = 633;
+int canyonleft_90 = 625;
+int lander_turn90 = 500;
 
 // backwards
 int ball_reverse = 800;
 int lander_reverse = 1600;
 
 // adjusts
-int pickup_adjust = 300;
-int canyon_adjust = 260;
+int pickup_adjust = 380;
+int canyon_adjust = 385;
 int deposit_adjust = 150;
 int lander_adjust = 250;
 
@@ -202,6 +204,33 @@ _LATA0 = 1; // right motor forward
 _LATA1 = 0; // left motor backward
 OC1RS = turn_speed; OC1R = OC1RS / 2;
 OC2RS = turn_speed; OC2R = OC2RS / 2;
+
+}
+//------------------------------------------------------------------------------
+
+//---canyon_forward function----------------------------------------------------
+void canyon_forward(void){
+    
+    // go straight
+    _LATA0 = 0;
+    _LATA1 = 0;
+        
+    // both motors equal
+    OC1RS = canyon_speed;
+    OC1R = OC1RS/2;
+    OC2RS = canyon_speed;
+    OC2R = OC2RS/2;
+    
+}
+//------------------------------------------------------------------------------
+
+//---canyon_back function-------------------------------------------------------
+void canyon_back(void){
+    
+_LATA0 = 1;
+_LATA1 = 1;
+OC1RS = canyon_speed; OC1R = OC1RS / 2;
+OC2RS = canyon_speed; OC2R = OC2RS / 2;
 
 }
 //------------------------------------------------------------------------------
@@ -628,8 +657,8 @@ int main(void){
             //---canyonstraight state-------------------------------------------
             case canyonstraight:
                 
-                // execute drive_straight function
-                drive_straight();
+                // execute canyon_forward function
+                canyon_forward();
                 
                 // check wall front
                 if (_RB14 == 0){
@@ -670,8 +699,8 @@ int main(void){
             //---canyonadjust state-----------------------------------------------
             case canyonadjust:
                 
-                // execute drive_back function
-                drive_back();
+                // execute canyon_back function
+                canyon_back();
                 
                 // check step count
                 if (steps > canyon_adjust){
@@ -788,8 +817,8 @@ int main(void){
                 // execute drive_back function
                 _LATA0 = 1;
                 _LATA1 = 1;
-                OC1RS = slow_line; OC1R = OC1RS / 2;
-                OC2RS = slow_line; OC2R = OC2RS / 2;
+                OC1RS = deposit_speed; OC1R = OC1RS / 2;
+                OC2RS = deposit_speed; OC2R = OC2RS / 2;
                 
                 if (steps > deposit_adjust){
                     
