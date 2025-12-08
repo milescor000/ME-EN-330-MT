@@ -30,7 +30,7 @@
 //---global variables-----------------------------------------------------------
 
 // speeds
-int norm_speed = 150;
+int norm_speed = 125;
 int slow_line = 2000;
 int medium_line = 100;
 int fast_line = 30;
@@ -43,24 +43,24 @@ int diode_thresh = 500;
 // counters
 int steps = 0;
 int servo_increment = 7;
-int final_increment = 15;
+int final_increment = 10;
 
 // turns
 int turn90 = 615;
 int reverse90 = 590;
-int canyonright_90 = 630;
-int canyonleft_90 = 630;
-int lander_turn90 = 585;
+int canyonright_90 = 625;
+int canyonleft_90 = 623;
+int lander_turn90 = 595;
 
 // backwards
 int ball_reverse = 800;
-int lander_reverse = 1500;
+int lander_reverse = 1600;
 
 // adjusts
 int pickup_adjust = 300;
 int canyon_adjust = 260;
-int deposit_adjust = 200;
-int lander_adjust = 260;
+int deposit_adjust = 150;
+int lander_adjust = 250;
 
 // forwards
 int ball_forward = 900;
@@ -1019,7 +1019,7 @@ int main(void){
                 
                 if (ADC1BUF11 > diode_thresh){
                     
-                    servo_start = servo_start + final_increment;
+                    servo_start = servo_start = final_increment;
                     
                     OC3R = servo_start;
                     
