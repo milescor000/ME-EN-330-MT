@@ -303,12 +303,13 @@ void config_ad(void){
 int main(void){
     
     // states
-    enum { startstraight, startleft, linestraight, lineleft, lineright, balladjust, 
-        ballpause, ballright, ballforward, ballwait, ballreverse, ballleft,
-        ballexit, canyonstraight, canyonadjust, canyonright, canyonleft,
-        canyonexitright, canyonexitleft, depositadjust, balldeposit, 
+    enum { startstraight, startleft, linestraight, lineleft, lineright, 
+        balladjust, ballpause, ballright, ballforward, ballwait, ballreverse, 
+        ballleft, ballexit, canyonstraight, canyonadjust, canyonright, 
+        canyonleft, canyonexitright, canyonexitleft, depositadjust, balldeposit, 
         depositleft, depositright, depositexit, landeradjust, 
-        landerright, landerreverse, roveroff, laserincrement, laserdelay, 
+        landerleft, landerlinestraight, landerlineright, landerlineleft, 
+        roveroff, laserincrement, laserdelay, 
         firelaser, missioncomplete } state;
     
     // configure peripherals
@@ -949,19 +950,19 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to landerright
-                    state = landerright;
+                    // change state to landerleft
+                    state = landerleft;
                     
                 }
                 
                 break;
             //------------------------------------------------------------------
                 
-            //---landerright state----------------------------------------------
-            case landerright:
+            //---landerleft state----------------------------------------------
+            case landerleft:
                 
-                // execute turn_right function
-                turn_right();
+                // execute turn_left function
+                turn_left();
                 
                 // check step count
                 if (steps > lander_turn90){
@@ -969,25 +970,71 @@ int main(void){
                     // reset steps
                     steps = 0;
                     
-                    // change state to landerreverse
-                    state = landerreverse;
+                    // change state to landerlinestraight
+                    state = landerlinestraight;
                     
                 }
                 
                 break;
             //------------------------------------------------------------------
 
-            //---landerreverse state--------------------------------------------
-            case landerreverse:
-                
-                // execute drive_back function
-                drive_back();
+            //---landerlinestraight state---------------------------------------
+            // execute drive_straight function
+                drive_straight();
 
-                // check step count
-                if (steps > lander_reverse){
+                // check line left
+                if (ADC1BUF15 < qrd_thresh){
 
-                    // change state to roveroof
+                    // change state to landerlineleft
+                    state = landerlineleft;
+
+                }
+
+                // check line right
+                if (ADC1BUF4 < qrd_thresh){
+
+                    // change state to landerlineright
+                    state = landerlineright;
+
+                }
+
+                // check lander wall
+                if (_RB14 == 0){
+
+                    // change state to roveroff
                     state = roveroff;
+
+                }
+            //------------------------------------------------------------------
+
+            //---landerlineleft state------------------------------------------
+            case landerlineleft:
+
+                // execute line_left function
+                line_left();
+
+                // check no line left
+                if (ADC1BUF15 > qrd_thresh){
+
+                    // change state to linestraight
+                    state = landerlinestraight;
+
+                }
+
+                break;
+            //------------------------------------------------------------------
+
+            //---landerlineright state------------------------------------------
+            case landerlineright:
+
+                // execute line_right function
+                line_right();
+
+                // check no line right
+                if (ADC1BUF4 > qrd_thresh){
+
+                    // change state to linestraight
+                    state = landerlinestraight;
 
                 }
 
@@ -1040,6 +1087,7 @@ int main(void){
                     state = firelaser;
                     
                 }
+
                 break;
             //------------------------------------------------------------------
                 
@@ -1048,7 +1096,7 @@ int main(void){
                 
                 if (ADC1BUF11 > diode_thresh){
                     
-                    servo_start = servo_start = final_increment;
+                    servo_start = servo_start - final_increment;
                     
                     OC3R = servo_start;
                     
