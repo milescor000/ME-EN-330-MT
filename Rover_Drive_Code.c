@@ -6,11 +6,6 @@
  */
 
 //---to-do----------------------------------------------------------------------
-// canyon navigation not well tuned
-// turning and backing up not consistent enough
-// too slow
-// satellite task
-// reenter lander
 //------------------------------------------------------------------------------
 
 //---set-up---------------------------------------------------------------------
@@ -45,17 +40,17 @@ int diode_thresh = 500;
 // counters
 int steps = 0;
 int servo_increment = 7;
-int final_increment = 15;
+int final_increment = 5;
 
 // turns
 int turn90 = 615;
 int reverse90 = 590;
-int canyonright_90 = 633;
-int canyonleft_90 = 625;
-int lander_turn90 = 500;
+int canyonright_90 = 628;
+int canyonleft_90 = 630;
+int lander_turn90 = 750;
 
 // backwards
-int ball_reverse = 800;
+int ball_reverse = 810;
 int lander_reverse = 1600;
 
 // adjusts
@@ -65,7 +60,7 @@ int deposit_adjust = 150;
 int lander_adjust = 250;
 
 // forwards
-int ball_forward = 900;
+int ball_forward = 910;
 
 // exits
 int ball_exit = 200;
@@ -979,7 +974,9 @@ int main(void){
             //------------------------------------------------------------------
 
             //---landerlinestraight state---------------------------------------
-            // execute drive_straight function
+            case landerlinestraight:
+                
+                // execute drive_straight function
                 drive_straight();
 
                 // check line left
@@ -1005,6 +1002,8 @@ int main(void){
                     state = roveroff;
 
                 }
+                
+                break;
             //------------------------------------------------------------------
 
             //---landerlineleft state------------------------------------------
@@ -1096,7 +1095,7 @@ int main(void){
                 
                 if (ADC1BUF11 > diode_thresh){
                     
-                    servo_start = servo_start - final_increment;
+                    servo_start = servo_start + final_increment;
                     
                     OC3R = servo_start;
                     
