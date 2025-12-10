@@ -34,20 +34,21 @@ int deposit_speed = 1500;
 int turn_speed = 78;
 
 // sensing
-int qrd_thresh = 2000;
+int qrd_thresh = 2000;      //raise threshhold? 2000
 int diode_thresh = 500;
 
 // counters
 int steps = 0;
-int servo_increment = 7;
-int final_increment = 5;
+int servo_increment = 10;
+int final_increment = 10;
 
 // turns
 int turn90 = 615;
 int reverse90 = 590;
-int canyonright_90 = 628;
+int canyonright_90 = 625;
 int canyonleft_90 = 630;
 int lander_turn90 = 750;
+int slight_steps = 12;
 
 // backwards
 int ball_reverse = 810;
@@ -55,9 +56,10 @@ int lander_reverse = 1600;
 
 // adjusts
 int pickup_adjust = 380;
-int canyon_adjust = 385;
+int canyon_adjust = 370;
 int deposit_adjust = 150;
-int lander_adjust = 250;
+int lander_adjust = 300;
+int prep_steps = 500;
 
 // forwards
 int ball_forward = 910;
@@ -219,7 +221,7 @@ void canyon_forward(void){
 }
 //------------------------------------------------------------------------------
 
-//---canyon_back function-------------------------------------------------------
+//---canyon_back function------------------------------------------------------- 
 void canyon_back(void){
     
 _LATA0 = 1;
@@ -227,6 +229,15 @@ _LATA1 = 1;
 OC1RS = canyon_speed; OC1R = OC1RS / 2;
 OC2RS = canyon_speed; OC2R = OC2RS / 2;
 
+}
+void slight_adjust(void){
+    
+    // right wheel forward
+    _LATA0 = 0;
+    
+    OC2RS = 0; OC2R = 0;
+    OC1RS = deposit_speed; OC1R = deposit_speed/2;
+    
 }
 //------------------------------------------------------------------------------
 
@@ -303,8 +314,8 @@ int main(void){
         ballleft, ballexit, canyonstraight, canyonadjust, canyonright, 
         canyonleft, canyonexitright, canyonexitleft, depositadjust, balldeposit, 
         depositleft, depositright, depositexit, landeradjust, 
-        landerleft, landerlinestraight, landerlineright, landerlineleft, 
-        roveroff, laserincrement, laserdelay, 
+        landerleft, landerlinestraight, landerlineright, landerlineleft, lzrprep,
+        roveroff, slightadjust, laserincrement, laserdelay, 
         firelaser, missioncomplete } state;
     
     // configure peripherals
@@ -427,7 +438,7 @@ int main(void){
                 
                 // check right IR for ball pickup
                 if (_RA4 == 0 && _RB15 == 1 && ADC1BUF13 < qrd_thresh && 
-                        ballpickup_complete == false){
+                        ballpickup_complete == false){      
                     
                     // reset steps
                     steps = 0;
@@ -936,8 +947,15 @@ int main(void){
             //---landeradjust state---------------------------------------------
             case landeradjust:
                 
-                // execute drive_back function
-                drive_back();
+                // go straight
+                _LATA0 = 1;
+                _LATA1 = 1;
+        
+                // both motors equal
+                OC1RS = canyon_speed;
+                OC1R = OC1RS/2;
+                OC2RS = canyon_speed;
+                OC2R = OC2RS/2;
                 
                 // check step count
                 if (steps > lander_adjust){
@@ -955,6 +973,8 @@ int main(void){
                 
             //---landerleft state----------------------------------------------
             case landerleft:
+                
+                turn_speed = 80;
                 
                 // execute turn_left function
                 turn_left();
@@ -997,9 +1017,12 @@ int main(void){
 
                 // check lander wall
                 if (_RB14 == 0){
+                    
+                    // reset step count
+                    steps = 0;
 
-                    // change state to roveroff
-                    state = roveroff;
+                    // change state to lzrprep
+                    state = lzrprep;
 
                 }
                 
@@ -1037,6 +1060,41 @@ int main(void){
 
                 }
 
+                break;
+            //------------------------------------------------------------------
+                
+            //---lzrprep state--------------------------------------------------
+            case lzrprep:
+                
+                // execute drive_back function
+                canyon_back();
+                
+                if (steps > prep_steps){
+                    
+                    // reset step count
+                    steps = 0;
+                    
+                    // change state to roveroff
+                    state = slightadjust;
+                    
+                }
+                
+                break;
+            //------------------------------------------------------------------
+                
+            //---slightadjust state---------------------------------------------
+            case slightadjust:
+                
+                // execute slight_adjust function
+                slight_adjust();
+                
+                if (steps > slight_steps){
+                    
+                    // change state to roveroff
+                    state = roveroff;
+                    
+                }
+                
                 break;
             //------------------------------------------------------------------
             
@@ -1095,7 +1153,7 @@ int main(void){
                 
                 if (ADC1BUF11 > diode_thresh){
                     
-                    servo_start = servo_start + final_increment;
+                    servo_start = servo_start - final_increment;
                     
                     OC3R = servo_start;
                     
